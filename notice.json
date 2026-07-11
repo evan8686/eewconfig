@@ -1,0 +1,9 @@
+{
+  "noticeId": "20260711-001",
+  "enabled": true,
+  "title": "重要通知",
+  "content": "此为测试通知，目前软件工作正常",
+  "expireAt": "2026-07-20T00:00:00+08:00",
+  "forceEveryLaunch": false,
+  "linkUrl": ""
+}
