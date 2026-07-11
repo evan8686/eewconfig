@@ -2,7 +2,10 @@
   "versionCode": 16,
   "versionName": "2.1.0",
   "forceUpdate": false,
-  "apkUrl": "https://gitee.com/evan8686/eew-receiver/releases/download/v2.1.0/EEW%20Receiver%20V2.1.0.apk",
+  "apkUrls": [
+    "https://gitee.com/evan8686/eew-receiver/releases/download/v2.1.0/EEW%20Receiver%20V2.1.0.apk",
+    "https://github.com/evan8686/EEW-Receiver/releases/download/v2.1.0/EEW.Receiver.V2.1.0.apk"
+  ],
   "fileSize": 2852126,
   "sha256": "444cc33a0d1b65cf4ca834491bca54ec460aad9435198957c63ff4c5ae48903c",
   "changelog": "🎉 V2.1.0 重磅更新\n\n· 全新全屏预警界面，新增震中距/预估烈度/避险提示\n· 新增震中瓦片地图与倒计时语音播报\n· 智能防烧屏屏幕控制\n· 可自定义烈度阈值与关注地坐标\n· 历史地震记录优化，新增防灾科普入口\n\n本应用不索取隐私权限，安装包均经VirusTotal零风险扫描，详情请查看应用内公告。"
