@@ -1,12 +1,12 @@
 {
-  "versionCode": 25,
-  "versionName": "2.3.5",
+  "versionCode": 24,
+  "versionName": "2.3.1",
   "forceUpdate": false,
   "apkUrls": [
     "https://gitee.com/evan8686/eew-receiver/releases/download/v2.3.1/EEW.Receiver.V2.3.1.apk",
     "https://github.com/evan8686/EEW-Receiver/releases/download/v2.3.1/EEW.Receiver.V2.3.1.apk"
   ],
-  "fileSize": 2852126,
-  "sha256": "8b3516c6f9a655916833fafd6d8e6b29d7274add5089938f8b01d9320f7a940b",
+  "fileSize": 2673868,
+  "sha256": "cfd1222280e20fe04ae3d878942544e029f2c0ac8020c4deffd6e020e61b6b68",
   "changelog": "🎉 V2.3.1 核心更新 · 新增节点活跃检测与自动重连，大幅提升后台保活率 · 全面支持深色模式与 Material You 动态取色，焕新图标· 新增内置版本更新检查、重要通知弹窗及应急科普入口· 历史记录支持长按删除，全界面统一规范“烈度”用语· 修复节点列表概率性错误与坐标显示小数点溢出等细节问题。安装包均经 VirusTotal 零风险扫描，详情请查看仓库release页面。"
 }
