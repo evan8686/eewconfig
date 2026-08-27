@@ -1,12 +1,12 @@
 {
-  "versionCode": 18,
-  "versionName": "2.2.0",
+  "versionCode": 25,
+  "versionName": "2.3.5",
   "forceUpdate": false,
   "apkUrls": [
-    "https://github.com/evan8686/eewconfig/releases/download/v2.2.0/EEW-Receiver.2.2.0.dev.apk",
-    "https://github.com/evan8686/eewconfig/releases/download/v2.2.0/EEW-Receiver.2.2.0.dev.apk"
+    "https://gitee.com/evan8686/eew-receiver/releases/download/v2.3.1/EEW.Receiver.V2.3.1.apk",
+    "https://github.com/evan8686/EEW-Receiver/releases/download/v2.3.1/EEW.Receiver.V2.3.1.apk"
   ],
   "fileSize": 2852126,
   "sha256": "8b3516c6f9a655916833fafd6d8e6b29d7274add5089938f8b01d9320f7a940b",
-  "changelog": "🎉 V2.1.0 重磅更新\n\n· 全新全屏预警界面，新增震中距/预估烈度/避险提示\n· 新增震中瓦片地图与倒计时语音播报\n· 智能防烧屏屏幕控制\n· 可自定义烈度阈值与关注地坐标\n· 历史地震记录优化，新增防灾科普入口\n\n本应用不索取隐私权限，安装包均经VirusTotal零风险扫描，详情请查看应用内公告。"
+  "changelog": "🎉 V2.3.1 核心更新 · 新增节点活跃检测与自动重连，大幅提升后台保活率 · 全面支持深色模式与 Material You 动态取色，焕新图标· 新增内置版本更新检查、重要通知弹窗及应急科普入口· 历史记录支持长按删除，全界面统一规范“烈度”用语· 修复节点列表概率性错误与坐标显示小数点溢出等细节问题。安装包均经 VirusTotal 零风险扫描，详情请查看仓库release页面。"
 }
