@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="EEW-Receiver 地震预警接收器：直连台湾地区中央气象署等预警源，通过 WebSocket 长连接第一时间推送，为福建、浙江南部沿海居民争取宝贵的避险时间。公益开源，免费 Android 应用。">
+<meta name="theme-color" content="#0b1220">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/app-icon.png">
+<title>EEW-Receiver · 地震预警接收器</title>
+<style>
+:root{
+  --bg:#0b1220;
+  --bg-2:#0f172a;
+  --surface:#111a2e;
+  --surface-2:#152037;
+  --line:rgba(148,163,184,.16);
+  --line-strong:rgba(148,163,184,.28);
+  --text:#e6edf7;
+  --muted:#94a3b8;
+  --dim:#64748b;
+  --accent:#f97316;
+  --accent-2:#ef4444;
+  --warn:#facc15;
+  --ok:#22c55e;
+  --radius:14px;
+  --maxw:1160px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",Noto Sans CJK SC,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+.container{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);font-weight:700;
+}
+.pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 rgba(249,115,22,.6);animation:pulse 2.2s infinite}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(249,115,22,.55)}
+  70%{box-shadow:0 0 0 12px rgba(249,115,22,0)}
+  100%{box-shadow:0 0 0 0 rgba(249,115,22,0)}
+}
+
+/* Header */
+header{
+  position:sticky;top:0;z-index:50;
+  backdrop-filter:saturate(150%) blur(10px);
+  background:rgba(11,18,32,.72);
+  border-bottom:1px solid var(--line);
+}
+.nav{display:flex;align-items:center;justify-content:space-between;height:66px}
+.brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:.2px}
+.logo{
+  width:36px;height:36px;border-radius:10px;overflow:hidden;flex:none;
+  box-shadow:0 6px 18px -8px rgba(30,64,175,.85);
+}
+.logo img{width:100%;height:100%;object-fit:cover;display:block}
+.brand small{display:block;font-weight:500;color:var(--muted);font-size:.72rem;letter-spacing:.02em}
+.nav-links{display:flex;gap:28px;font-size:.92rem}
+.nav-links a{color:var(--muted);transition:color .18s}
+.nav-links a:hover{color:var(--text)}
+.nav-cta{display:flex;align-items:center;gap:12px}
+.menu-toggle{display:none;background:none;border:1px solid var(--line-strong);border-radius:9px;color:var(--text);width:40px;height:38px;cursor:pointer;font-size:1.15rem}
+
+/* Buttons */
+.btn{
+  display:inline-flex;align-items:center;gap:9px;
+  padding:.78rem 1.25rem;border-radius:11px;font-weight:650;font-size:.95rem;
+  transition:transform .14s ease, box-shadow .2s, background .2s;cursor:pointer;border:1px solid transparent;white-space:nowrap;
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent-2),var(--accent));
+  color:#fff;box-shadow:0 12px 30px -12px rgba(239,68,68,.6);
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 38px -12px rgba(239,68,68,.75)}
+.btn-ghost{background:var(--surface-2);color:var(--text);border-color:var(--line-strong)}
+.btn-ghost:hover{background:#1b2941;transform:translateY(-2px)}
+.btn-sm{padding:.55rem .95rem;font-size:.88rem;border-radius:9px}
+
+/* Hero */
+.hero{position:relative;padding:82px 0 66px;overflow:hidden}
+.hero::before{
+  content:"";position:absolute;inset:-40% -10% auto -10%;height:120%;
+  background:
+    radial-gradient(60% 55% at 18% 12%,rgba(239,68,68,.22),transparent 60%),
+    radial-gradient(55% 50% at 85% 8%,rgba(249,115,22,.16),transparent 62%);
+  pointer-events:none;
+}
+.hero::after{
+  content:"";position:absolute;inset:0;
+  background-image:linear-gradient(rgba(148,163,184,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.05) 1px,transparent 1px);
+  background-size:44px 44px;mask-image:radial-gradient(60% 60% at 50% 30%,#000,transparent 80%);
+  pointer-events:none;opacity:.5;
+}
+.hero-grid{position:relative;display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+.hero h1{
+  font-size:clamp(2.1rem,4.6vw,3.35rem);line-height:1.16;margin:.5rem 0 .3rem;
+  font-weight:850;letter-spacing:-.01em;
+}
+.hero h1 .hl{
+  background:linear-gradient(120deg,var(--accent-2),var(--warn));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hero .sub{color:var(--muted);font-size:1.1rem;max-width:36ch;margin:.9rem 0 1.4rem}
+.hero-actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:6px}
+.hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.chip{
+  font-size:.82rem;color:var(--muted);background:var(--surface);
+  border:1px solid var(--line);padding:.4rem .8rem;border-radius:999px;display:inline-flex;gap:7px;align-items:center;
+}
+.chip b{color:var(--text);font-weight:650}
+
+/* hero visual */
+.shot-wrap{position:relative}
+.shot{
+  border-radius:18px;border:1px solid var(--line-strong);
+  background:linear-gradient(160deg,var(--surface),var(--bg-2));
+  padding:14px;box-shadow:0 34px 70px -34px rgba(0,0,0,.75);
+  transform:rotate(-.6deg);
+}
+.shot img{border-radius:10px}
+.shot figcaption{color:var(--dim);font-size:.82rem;text-align:center;padding-top:12px}
+/* Hero phone mockup + seismic rings */
+.hero-visual{position:relative;display:grid;place-items:center;min-height:540px}
+.rings{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;z-index:1}
+.rings span{position:absolute;width:200px;height:200px;border:1.5px solid rgba(239,68,68,.4);border-radius:50%;animation:ring 4s ease-out infinite;opacity:0}
+.rings span:nth-child(2){animation-delay:1s;border-color:rgba(249,115,22,.4)}
+.rings span:nth-child(3){animation-delay:2s}
+.rings span:nth-child(4){animation-delay:3s;border-color:rgba(249,115,22,.4)}
+@keyframes ring{0%{transform:scale(.7);opacity:0}12%{opacity:.75}100%{transform:scale(3.4);opacity:0}}
+.phone{
+  position:relative;width:262px;aspect-ratio:1080/2298;background:#0a0f1c;
+  border:9px solid #1f2a44;border-radius:42px;overflow:hidden;z-index:2;
+  box-shadow:0 44px 84px -32px rgba(0,0,0,.82),0 0 0 2px rgba(148,163,184,.12);
+}
+.phone img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* Screenshots grid (no phone shell) */
+.screen-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:18px}
+.phone-card{margin:0;text-align:center}
+.shot{
+  border:0;background:none;padding:0;margin:0;cursor:zoom-in;display:block;width:100%;
+  border-radius:12px;overflow:hidden;transition:transform .18s ease;
+}
+.shot img{width:100%;display:block;border:1px solid var(--line);border-radius:12px;transition:border-color .2s}
+.shot:hover{transform:translateY(-4px)}
+.shot:hover img{border-color:var(--line-strong)}
+.shot:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.phone-card figcaption{margin-top:12px;color:var(--muted);font-size:.9rem}
+.phone-card figcaption b{color:var(--accent);margin-right:4px}
+
+/* Lightbox */
+.lightbox{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(6,10,20,.93);backdrop-filter:blur(6px);opacity:0;transition:opacity .18s}
+.lightbox.open{opacity:1}
+.lightbox[hidden]{display:none}
+.lb-stage{margin:0;text-align:center;max-width:92vw}
+.lb-stage img{max-height:80vh;max-width:88vw;border-radius:12px;border:1px solid var(--line-strong);box-shadow:0 34px 90px -22px rgba(0,0,0,.85)}
+.lb-stage figcaption{color:var(--muted);margin-top:14px;font-size:.95rem}
+.lb-btn{position:absolute;display:grid;place-items:center;background:rgba(21,32,55,.8);border:1px solid var(--line-strong);color:var(--text);cursor:pointer;transition:background .18s, transform .14s}
+.lb-btn:hover{background:#1b2941}
+.lb-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lb-close{top:20px;right:22px;width:44px;height:44px;border-radius:11px;font-size:1.15rem}
+.lb-prev,.lb-next{top:50%;transform:translateY(-50%);width:48px;height:64px;border-radius:12px;font-size:1.8rem;line-height:1}
+.lb-prev{left:16px}.lb-next{right:16px}
+.lb-prev:hover,.lb-next:hover{transform:translateY(-50%) scale(1.05)}
+@media (max-width:560px){.lb-prev,.lb-next{width:40px;height:54px;font-size:1.5rem}.lb-close{top:12px;right:12px}}
+
+/* Stats strip */
+.stats{border-block:1px solid var(--line);background:var(--bg-2)}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+.stat{padding:22px 18px;text-align:center;border-left:1px solid var(--line)}
+.stat:first-child{border-left:0}
+.stat .num{font-size:1.7rem;font-weight:800;background:linear-gradient(120deg,var(--accent),var(--warn));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat .lbl{color:var(--muted);font-size:.86rem;margin-top:2px}
+
+/* Sections */
+section{padding:78px 0}
+.section-head{max-width:640px;margin-bottom:40px}
+.section-head h2{font-size:clamp(1.6rem,3vw,2.15rem);font-weight:820;margin:.6rem 0 .55rem;letter-spacing:-.01em}
+.section-head p{color:var(--muted);margin:0}
+
+/* Story */
+.story{background:var(--bg-2)}
+.story-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:44px;align-items:start}
+.story p.lead{font-size:1.08rem;color:var(--text)}
+.story p{color:var(--muted)}
+.timeline{border-left:2px solid var(--line-strong);padding-left:22px;margin-top:8px}
+.tl-item{position:relative;padding-bottom:18px}
+.tl-item::before{content:"";position:absolute;left:-29px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--bg-2)}
+.tl-item h4{margin:0 0 3px;font-size:1rem;color:var(--text)}
+.tl-item p{margin:0;font-size:.92rem}
+.callout{
+  background:linear-gradient(150deg,rgba(239,68,68,.12),rgba(249,115,22,.07));
+  border:1px solid rgba(239,68,68,.3);border-radius:var(--radius);padding:24px;
+}
+.callout .big{font-size:2rem;font-weight:850;color:#fecaca;line-height:1.1}
+.callout p{color:var(--muted);font-size:.92rem;margin:.5rem 0 0}
+
+/* Feature cards */
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:24px;transition:transform .18s, border-color .2s, background .2s;
+}
+.card:hover{transform:translateY(-4px);border-color:var(--line-strong);background:var(--surface-2)}
+.card .ico{
+  width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:1.25rem;
+  background:linear-gradient(135deg,rgba(249,115,22,.18),rgba(239,68,68,.14));
+  border:1px solid rgba(249,115,22,.3);margin-bottom:15px;
+}
+.card h3{margin:0 0 6px;font-size:1.08rem}
+.card p{margin:0;color:var(--muted);font-size:.94rem}
+
+/* Screenshot section */
+.shots{background:var(--bg-2)}
+.shot-full{
+  border:1px solid var(--line-strong);border-radius:18px;background:var(--surface);padding:16px;
+  box-shadow:0 30px 60px -34px rgba(0,0,0,.7);
+}
+.shot-full img{border-radius:10px;width:100%}
+.shot-legend{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:20px}
+.legend{font-size:.86rem;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:.4rem .9rem}
+.legend b{color:var(--accent);font-weight:700}
+
+/* Two-column steps */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:34px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:28px}
+.panel h3{margin:0 0 14px;font-size:1.2rem;display:flex;align-items:center;gap:10px}
+.steps{list-style:none;margin:0;padding:0;counter-reset:s}
+.steps li{position:relative;padding:0 0 18px 44px;counter-increment:s}
+.steps li::before{
+  content:counter(s);position:absolute;left:0;top:-2px;
+  width:29px;height:29px;border-radius:9px;display:grid;place-items:center;
+  background:var(--surface-2);border:1px solid var(--line-strong);color:var(--accent);font-weight:700;font-size:.9rem;
+}
+.steps li:last-child{padding-bottom:0}
+.steps li strong{color:var(--text)}
+.steps li span{color:var(--muted)}
+
+/* Config list */
+.config{list-style:none;margin:0;padding:0}
+.config li{border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px;background:var(--surface-2)}
+.config li h4{margin:0 0 5px;font-size:1rem;display:flex;align-items:center;gap:9px}
+.config li h4 .k{background:var(--accent);color:#0b1220;font-weight:800;width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-size:.85rem;flex:none}
+.config li p{margin:0;color:var(--muted);font-size:.92rem}
+
+/* Boundary / caution */
+.caution{background:linear-gradient(160deg,rgba(250,204,21,.10),rgba(239,68,68,.06));border:1px solid rgba(250,204,21,.35);border-radius:var(--radius);padding:30px}
+.caution h2{color:var(--warn)}
+.src-reco{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px}
+.src{background:rgba(11,18,32,.5);border:1px solid var(--line);border-radius:12px;padding:16px}
+.src .region{color:var(--muted);font-size:.86rem}
+.src .org{color:var(--text);font-weight:700;font-size:1.02rem;margin-top:3px}
+.src .org span{color:var(--warn);font-weight:600;font-size:.82rem}
+
+/* Credits */
+.credits{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.credit{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+.credit h3{margin:0 0 4px;font-size:1.12rem}
+.credit .role{color:var(--accent);font-size:.82rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.credit p{color:var(--muted);margin:.6rem 0 0;font-size:.94rem}
+.credit a.ext{color:#7dd3fc;font-weight:600}
+
+/* Disclaimer */
+.disc{background:var(--bg-2)}
+.disc ol{color:var(--muted);padding-left:22px;margin:0}
+.disc ol li{margin-bottom:12px}
+.disc ol li strong{color:var(--text)}
+
+/* Download */
+.download{
+  background:
+    radial-gradient(50% 120% at 50% 0%,rgba(239,68,68,.22),transparent 60%),
+    var(--bg-2);
+  border-block:1px solid var(--line);
+}
+.dl-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:44px;align-items:center}
+.dl-card{background:var(--surface);border:1px solid var(--line-strong);border-radius:18px;padding:28px}
+.dl-card .row{display:flex;gap:14px;flex-wrap:wrap}
+.dl-card .row .btn{flex:1;justify-content:center;min-width:220px}
+.meta{margin-top:22px;display:flex;flex-wrap:wrap;gap:16px 26px;color:var(--muted);font-size:.88rem}
+.meta b{color:var(--text);font-weight:650}
+.tag-ok{color:var(--ok)}
+
+/* Footer */
+footer{padding:44px 0;border-top:1px solid var(--line);color:var(--dim)}
+.foot{display:flex;justify-content:space-between;gap:22px;flex-wrap:wrap;align-items:center}
+.foot .fnav{display:flex;gap:22px;flex-wrap:wrap;font-size:.9rem}
+.foot .fnav a{color:var(--muted)}
+.foot .fnav a:hover{color:var(--text)}
+footer .legal{max-width:820px;margin:20px 0 0;font-size:.82rem;color:var(--dim)}
+
+/* Responsive */
+@media (max-width:940px){
+  .hero-grid,.story-grid,.dl-grid{grid-template-columns:1fr;gap:34px}
+  .cards{grid-template-columns:1fr 1fr}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .stat:nth-child(3){border-left:0}
+  .stat{border-top:1px solid var(--line)}
+  .stat:nth-child(-n+2){border-top:0}
+  .src-reco{grid-template-columns:1fr}
+  .credits{grid-template-columns:1fr}
+  .grid-2{grid-template-columns:1fr}
+  .nav-links{display:none}
+  .menu-toggle{display:grid;place-items:center}
+  header.open .nav-links{
+    display:flex;position:absolute;top:66px;left:0;right:0;flex-direction:column;gap:0;
+    background:var(--bg-2);border-bottom:1px solid var(--line);padding:8px 22px 16px;
+  }
+  header.open .nav-links a{padding:12px 0;border-bottom:1px solid var(--line)}
+  .nav-cta .btn-lg-hide{display:none}
+  .shot{transform:none}
+}
+@media (max-width:560px){
+  .cards{grid-template-columns:1fr}
+  section{padding:58px 0}
+}
+</style>
+</head>
+<body>
+
+<header id="top">
+  <div class="container nav">
+    <a href="#top" class="brand">
+      <span class="logo"><img src="assets/app-icon.png" alt="EEW-Receiver 图标"></span>
+      <span>EEW-Receiver<small>地震预警接收器</small></span>
+    </a>
+    <nav class="nav-links">
+      <a href="#why">项目初衷</a>
+      <a href="#features">功能</a>
+      <a href="#screens">应用截图</a>
+      <a href="#usage">使用说明</a>
+      <a href="#config">关键配置</a>
+      <a href="#boundary">应用边界</a>
+    </nav>
+    <div class="nav-cta">
+      <a href="#download" class="btn btn-primary btn-sm btn-lg-hide">下载最新版</a>
+      <button class="menu-toggle" id="menuToggle" aria-label="打开菜单" aria-expanded="false">☰</button>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero" style="padding-top:64px">
+  <div class="container hero-grid">
+    <div>
+      <span class="eyebrow"><span class="pulse-dot"></span> 开源公益 · Android 应用</span>
+      <h1>为东南沿海<br><span class="hl">争取近 1 分钟</span>避险时间</h1>
+      <p class="sub">直连台湾地区中央气象署（CWA）等预警源，通过 WebSocket 长连接第一时间接收推送，把跨越海峡的地震波时间差，变成你可用的黄金避险窗口。</p>
+      <div class="hero-actions">
+        <a href="#download" class="btn btn-primary">⬇ 下载最新版 v2.3.1</a>
+        <a href="#why" class="btn btn-ghost">了解项目初衷</a>
+      </div>
+      <div class="chips">
+        <span class="chip"><b>不依赖</b> Google FCM</span>
+        <span class="chip"><b>全屏</b>强震警报</span>
+        <span class="chip"><b>系统闹钟</b>音量播报</span>
+        <span class="chip"><b>免费开源</b> · 无需付费</span>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <div class="phone" role="img" aria-label="手机正在接收地震预警：震源最大震级 5.9 级，震波到达还有 62 秒">
+        <img src="assets/hero-alert.png" alt="EEW-Receiver 强震全屏警报界面：震级 5.9、倒计时 62 秒与台湾震中地图" loading="eager">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="container stats-grid">
+    <div class="stat"><div class="num">~1 分钟</div><div class="lbl">相较官方系统抢跑的避险时间</div></div>
+    <div class="stat"><div class="num">WebSocket</div><div class="lbl">直连预警源，减少中转环节</div></div>
+    <div class="stat"><div class="num">多源订阅</div><div class="lbl">大陆地区 / 台湾地区 / 日本</div></div>
+    <div class="stat"><div class="num">免费开源</div><div class="lbl">公益项目 · 完全免费</div></div>
+  </div>
+</div>
+
+<!-- WHY -->
+<section id="why" class="story">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">项目初衷</span>
+      <h2>一个被系统"静默"的缺口</h2>
+      <p>大陆的地震预警系统尚未接入台湾地区中央气象署（CWA）的预警。而受台湾地震影响明显的福建、浙江地区，常常有明显震感，却得不到任何预警。</p>
+    </div>
+    <div class="story-grid">
+      <div>
+        <p class="lead">2025 年 12 月 27 日 23:05，台湾宜兰外海发生 7.0 级强震。福州因盆地效应震感加剧，经历了持续数分钟的摇晃，华东、华南多省皆有感。然而福建预警全程静默——直到震感过去数分钟后（23:11），才收到地震正式报。</p>
+        <div class="timeline">
+          <div class="tl-item">
+            <h4>痛点成因</h4>
+            <p>大陆与台湾地区的地震监测网未实现互联，且大陆系统暂无接入 CWA 开放 API 的计划。</p>
+          </div>
+          <div class="tl-item">
+            <h4>预警失能的技术时间差</h4>
+            <p>台湾本岛测站触发预警时，福建系统仍在空等地震波跨海抵达平潭、泉州等基站（约需 30 秒）。等基站完成计算时，地震波已抵达福建大部，被判"失去时效"而弃发。</p>
+          </div>
+          <div class="tl-item">
+            <h4>解决方案</h4>
+            <p>自主开发轻量手机预警 App：直接接入台湾预警数据并打通本地推送，跨过物理监测时间差，在破坏性震感到来前抢占避险窗口。</p>
+          </div>
+          <div class="tl-item">
+            <h4>未来展望</h4>
+            <p>国家级小区广播警报正在部署，但大概率仍不会接入 CWA 数据。对东南沿海用户而言，本应用仍具重要补充价值。</p>
+          </div>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="big">≈ 6 分钟</div>
+        <p>那场地震中，从"震感结束"到"收到正式报"的静默间隔。本项目的意义，正是把这段时间，换成震前可用的预警。</p>
+        <div class="big" style="margin-top:22px">跨海 30 秒</div>
+        <p>地震波从台湾本岛抵达福建沿海基站所需的时间——也是官方预警被"判负弃发"的关键窗口。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">核心功能</span>
+      <h2>把"及时"和"可靠"放在第一位</h2>
+      <p>每一项设计，都服务于一个目标：在危急时刻，让预警真正送达、真正响起来。</p>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <div class="ico">📡</div>
+        <h3>WebSocket 直连</h3>
+        <p>不依赖 Google FCM，通过手机建立长连接直接订阅推送，减少中转环节，避免 FCM 在大陆网络下数小时级延迟。</p>
+      </div>
+      <div class="card">
+        <div class="ico">🔔</div>
+        <h3>常驻监控通知</h3>
+        <p>无预警时通知栏常驻"地震预警监控中"，一旦消失即代表应用被杀后台——让你随时知道它是否还在守护。</p>
+      </div>
+      <div class="card">
+        <div class="ico">🚨</div>
+        <h3>全屏强震警报</h3>
+        <p>达到阈值时，除通知外还触发全屏警报、震动与倒计时，锁屏状态同样可弹出。</p>
+      </div>
+      <div class="card">
+        <div class="ico">🔊</div>
+        <h3>系统闹钟音量播报</h3>
+        <p>采用系统闹钟音量通道，不受媒体静音或响铃模式影响，完全遵循闹钟音量设置，确保第一时间被听见。</p>
+      </div>
+      <div class="card">
+        <div class="ico">🎚️</div>
+        <h3>阈值灵活设置</h3>
+        <p>可调整全屏警报的震级阈值（默认 3 级），也可启用本地预估烈度阈值，按所在地相关性自行取舍。</p>
+      </div>
+      <div class="card">
+        <div class="ico">🗂️</div>
+        <h3>多源订阅 + 最近地震</h3>
+        <p>内置多个预警订阅源（默认开启 CWA），并提供最近地震列表；建议仅勾选与所在地最相关的单一源。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCREENSHOTS -->
+<section id="screens" class="shots">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">应用截图</span>
+      <h2>界面一览</h2>
+      <p>从全屏警报、订阅源、阈值设置到系统测试与最近地震，覆盖日常监控与应急响应的完整链路。<br><span style="color:var(--dim);font-size:.9rem">提示：点击任意截图可放大查看。</span></p>
+    </div>
+    <div class="screen-grid">
+      <figure class="phone-card"><button class="shot" type="button" data-full="assets/screen-alert.png" data-caption="① 强震全屏弹窗" aria-label="放大查看：强震全屏弹窗"><img src="assets/screen-alert.png" alt="强震全屏弹窗界面" loading="lazy"></button><figcaption><b>①</b>强震全屏弹窗</figcaption></figure>
+      <figure class="phone-card"><button class="shot" type="button" data-full="assets/screen-sources.png" data-caption="② 订阅源列表" aria-label="放大查看：订阅源列表"><img src="assets/screen-sources.png" alt="订阅源列表界面" loading="lazy"></button><figcaption><b>②</b>订阅源列表</figcaption></figure>
+      <figure class="phone-card"><button class="shot" type="button" data-full="assets/screen-threshold.png" data-caption="③ 阈值设置" aria-label="放大查看：阈值设置"><img src="assets/screen-threshold.png" alt="阈值设置界面" loading="lazy"></button><figcaption><b>③</b>阈值设置</figcaption></figure>
+      <figure class="phone-card"><button class="shot" type="button" data-full="assets/screen-test.png" data-caption="④ 系统测试和其他" aria-label="放大查看：系统测试和其他"><img src="assets/screen-test.png" alt="系统测试和其他界面" loading="lazy"></button><figcaption><b>④</b>系统测试和其他</figcaption></figure>
+      <figure class="phone-card"><button class="shot" type="button" data-full="assets/screen-recent.png" data-caption="⑤ 最近地震列表" aria-label="放大查看：最近地震列表"><img src="assets/screen-recent.png" alt="最近地震列表界面" loading="lazy"></button><figcaption><b>⑤</b>最近地震列表</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- USAGE -->
+<section id="usage">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">使用说明</span>
+      <h2>四步上手</h2>
+      <p>装好之后，正确配置才能真正发挥预警价值。</p>
+    </div>
+    <div class="grid-2">
+      <div class="panel">
+        <h3>⚙️ 快速上手</h3>
+        <ol class="steps">
+          <li><strong>选定订阅源</strong> · <span>进入设置勾选与所在地相关性最高的单一源（默认开启台湾地区中央气象署），避免多源冲突。</span></li>
+          <li><strong>修改阈值</strong> · <span>调整全屏警报震级阈值（指 EEW 推送震级，非本地实际震级，默认 3），或启用本地预估烈度阈值。</span></li>
+          <li><strong>授予权限</strong> · <span>开启所有必要通知权限，并按下方"关键配置"完成防杀后台设置。</span></li>
+          <li><strong>运行弹窗测试</strong> · <span>分别在解锁与锁屏状态模拟触发，确认弹窗、警报音、倒计时、瓦片地图均正常。</span></li>
+        </ol>
+      </div>
+      <div class="panel">
+        <h3>📲 通知与警报逻辑</h3>
+        <ol class="steps">
+          <li><strong>监控中</strong> · <span>未收到预警时，通知栏常驻"地震预警监控中"。若消失，代表应用已被系统杀端。</span></li>
+          <li><strong>未达阈值</strong> · <span>收到 API 推送但未达阈值时，仅弹普通通知。</span></li>
+          <li><strong>达到阈值</strong> · <span>触发通知 + 全屏警报 + 震动。</span></li>
+          <li><strong>强制警报</strong> · <span>走系统闹钟音量通道，不受静音/响铃影响。请勿把系统闹钟音量调得过低。</span></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONFIG -->
+<section id="config" class="story">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow" style="color:var(--warn)">⚠️ 必要关键配置</span>
+      <h2>App 需要后台保活才有意义</h2>
+      <p>请严格按下列方式操作，确保核心预警功能能持续存活并工作。以下以 <b>OPPO ColorOS 16</b> 为例，小米澎湃 OS、vivo OriginOS 等入口略有差异但基本类似。</p>
+    </div>
+    <div class="grid-2">
+      <ul class="config">
+        <li>
+          <h4><span class="k">1</span> 设置 · 通知 · EEW Receiver</h4>
+          <p>开启"允许通知"并勾选<b>锁屏 / 横幅</b>；打开<b>铃声 / 震动 / 允许打扰</b>（免打扰下仍能响铃震动）；将类别中的"地震预警事件"设为允许通知，"地震预警后台监控"维持默认静默。</p>
+        </li>
+        <li>
+          <h4><span class="k">2</span> 应用管理 · 权限管理</h4>
+          <p>"锁屏显示"设为允许；进入"其他权限 → 特殊应用权限"，通过右上角三点"<b>解锁所有授权限制</b>"后，将<b>悬浮窗、后台弹出界面、发送全屏通知</b>均设为允许。</p>
+        </li>
+      </ul>
+      <ul class="config">
+        <li>
+          <h4><span class="k">3</span> 多任务界面 · 锁定不清理</h4>
+          <p>上滑呼出多任务，找到 EEW Receiver，点击三点选择"<b>锁定</b>"，一键清理时不会被杀掉。</p>
+        </li>
+        <li>
+          <h4><span class="k">4</span> 耗电管理 · 允许后台行为</h4>
+          <p>进入耗电管理，选择 EEW Receiver，设为"<b>完全允许后台行为</b>"。</p>
+        </li>
+        <li>
+          <h4><span class="k">5</span> 应用自启动</h4>
+          <p>在系统"自启动"管理中，<b>允许 EEW Receiver 自启动</b>。</p>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- BOUNDARY -->
+<section id="boundary">
+  <div class="container">
+    <div class="caution">
+      <span class="eyebrow" style="color:var(--warn)">🚨 应用边界与漏报排查</span>
+      <h2 style="font-size:1.5rem;margin:.5rem 0 .4rem">本应用是"防灾避险"工具，而非全球实时监控</h2>
+      <p style="color:var(--muted);margin:0">同时维持大量 WebSocket 长连接并发，极易被安卓底层识别为异常网络行为或恶意耗电，触发强制断流与杀后台。为确保危急时刻预警的绝对稳定，强烈建议<b style="color:var(--text)">仅勾选与所在地防灾最相关的唯一机构</b>：</p>
+      <div class="src-reco">
+        <div class="src">
+          <div class="region">福建 · 浙江南部</div>
+          <div class="org">台湾地区中央气象署 <span>CWA</span></div>
+        </div>
+        <div class="src">
+          <div class="region">四川及周边</div>
+          <div class="org">四川地震局</div>
+        </div>
+        <div class="src">
+          <div class="region">大陆其他地区</div>
+          <div class="org">中国地震台网 <span>CENC</span></div>
+        </div>
+      </div>
+      <p style="color:var(--muted);margin:22px 0 0">本应用不具备独立测定/下发数据的能力，预警完全依赖 Wolfx 开源 API 转发。若仅开启单源、确认后台存活仍遭遇漏报：请先用 WebSocket 工具的 <code style="color:#7dd3fc">query</code> 指令，查询 Wolfx 服务端当时是否成功下发该报文。<b style="color:var(--text)">未下发</b>属上游数据源原因，请向 Wolfx 咨询；<b style="color:var(--text)">已下发但 App 未响应</b>，才可能属于应用层逻辑异常。</p>
+    </div>
+  </div>
+</section>
+
+<!-- CREDITS -->
+<section class="story" id="credits">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">🙏 特别鸣谢</span>
+      <h2>数据源与灵感</h2>
+      <p>本项目的数据源与灵感，离不开以下开源项目与无私服务的支持。</p>
+    </div>
+    <div class="credits">
+      <div class="credit">
+        <div class="role">数据源 · WebSocket API</div>
+        <h3><a class="ext" href="https://wolfx.jp/" target="_blank" rel="noopener">Wolfx Project ↗</a></h3>
+        <p>为本项目提供了稳定、快速且无私的地震预警 WebSocket API 转发服务。API 说明见 <a class="ext" href="https://wolfx.jp/apidoc_zh" target="_blank" rel="noopener">apidoc_zh</a>。</p>
+      </div>
+      <div class="credit">
+        <div class="role">参考与灵感 · 桌面端预警</div>
+        <h3><a class="ext" href="https://github.com/Lipomoea/kanameishi" target="_blank" rel="noopener">kanameishi 要石 ↗</a></h3>
+        <p>为本项目的开发与数据源接入提供了优秀参考与灵感。要石是一款电脑版地震预警软件，非常推荐在电脑端安装。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DISCLAIMER -->
+<section class="disc" id="disclaimer">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow" style="color:var(--accent-2)">⚠️ 免责声明</span>
+      <h2>请务必阅读</h2>
+    </div>
+    <ol>
+      <li><strong>个人业余项目。</strong>本应用为个人独立开发的非商业化软件，不隶属、授权或关联任何政府/地震监测机构，仅作为预警信息接收的补充渠道，不构成对官方服务的替代。权威信息请以所在地官方渠道为准。</li>
+      <li><strong>第三方服务稳定性。</strong>数据强依赖 Wolfx 第三方 API，对因网络波动、本地网络或接口异常导致的延迟、断线或接收失败，开发者无法控制，也无法提供全天候稳定性保证。</li>
+      <li><strong>预警准确性局限。</strong>预警信息直接转发自 Wolfx API 报文，受观测密度与算法物理极限限制，不可避免存在误差、误报、漏报或与最终测定不符。<b>最终测定数据以各地震台/局/署官方正式报为准。</b></li>
+      <li><strong>后台运行稳定性。</strong>各品牌 OS 处理后台进程逻辑不同，无法保证在所有手机上持久保活。如遇问题请核对配置或与手机品牌方联系。</li>
+      <li><strong>免责条款。</strong>请务必<b>不要</b>将本应用作为生命与财产安全的唯一依赖手段。收到警报时请结合实际震感与环境迅速做出避险判断。对使用或无法使用本软件导致的任何直接或间接损失，开发者不承担任何法律与经济责任。使用即代表你已知晓并同意本声明全部内容。</li>
+    </ol>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section class="download" id="download">
+  <div class="container dl-grid">
+    <div>
+      <span class="eyebrow">下载</span>
+      <h2 style="font-size:clamp(1.7rem,3.2vw,2.3rem);font-weight:840;margin:.5rem 0 .6rem">现在开始守护你的 1 分钟</h2>
+      <p style="color:var(--muted);max-width:44ch;margin:0 0 8px">免费开源，无广告、无需注册。选择离你网络最近的渠道下载最新 APK，安装后按上文完成关键配置即可。</p>
+      <div class="dl-card" style="margin-top:26px">
+        <div class="row">
+          <a class="btn btn-primary" href="https://github.com/evan8686/EEW-Receiver/releases/latest" target="_blank" rel="noopener">⬇ GitHub 下载最新版</a>
+          <a class="btn btn-ghost" href="https://gitee.com/evan8686/eew-receiver/releases/latest" target="_blank" rel="noopener">⬇ Gitee 国内加速下载</a>
+        </div>
+        <div class="meta">
+          <span>版本 <b>v2.3.1</b></span>
+          <span>更新 <b>2026-08-27</b></span>
+          <span>平台 <b>Android</b></span>
+          <span>体积 <b>≈ 2.6 MB</b></span>
+          <span>许可 <b>AGPL-3.0</b></span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="dl-card">
+        <h3 style="margin:0 0 6px;font-size:1.1rem">查看源码 · 反馈问题</h3>
+        <p style="color:var(--muted);margin:0 0 18px;font-size:.94rem">项目源码开源，欢迎参与测试、提交 Issue 与贡献。</p>
+        <div class="row" style="flex-direction:column">
+          <a class="btn btn-ghost" style="width:100%;justify-content:center" href="https://github.com/evan8686/EEW-Receiver" target="_blank" rel="noopener">🐙 访问 GitHub 仓库</a>
+          <a class="btn btn-ghost" style="width:100%;justify-content:center" href="https://gitee.com/evan8686/eew-receiver" target="_blank" rel="noopener">🔴 访问 Gitee 仓库</a>
+          <a class="btn btn-ghost" style="width:100%;justify-content:center" href="https://github.com/evan8686/EEW-Receiver/releases/tag/v2.3.1" target="_blank" rel="noopener">📄 查看 v2.3.1 更新说明</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="foot">
+      <div class="brand">
+        <span class="logo"><img src="assets/app-icon.png" alt="EEW-Receiver 图标"></span>
+        <span>EEW-Receiver<small>地震预警接收器 · 公益开源项目</small></span>
+      </div>
+      <nav class="fnav">
+        <a href="#why">项目初衷</a>
+        <a href="#usage">使用说明</a>
+        <a href="#config">关键配置</a>
+        <a href="#disclaimer">免责声明</a>
+        <a href="#download">下载</a>
+      </nav>
+    </div>
+    <p class="legal">本应用非任何官方地震监测机构产品，预警数据转发自第三方 Wolfx API，最终测定以官方正式报为准。请勿将其作为生命与财产安全的唯一依赖手段。数据源：<a href="https://wolfx.jp/" target="_blank" rel="noopener" style="color:var(--dim);text-decoration:underline">Wolfx Project</a>。</p>
+  </div>
+</footer>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="截图预览" hidden>
+  <button class="lb-btn lb-close" id="lbClose" aria-label="关闭预览">✕</button>
+  <button class="lb-btn lb-prev" id="lbPrev" aria-label="上一张">‹</button>
+  <figure class="lb-stage"><img id="lbImg" src="" alt=""><figcaption id="lbCap"></figcaption></figure>
+  <button class="lb-btn lb-next" id="lbNext" aria-label="下一张">›</button>
+</div>
+
+<script>
+  const header = document.getElementById('top');
+  const toggle = document.getElementById('menuToggle');
+  toggle.addEventListener('click', () => {
+    const open = header.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.querySelectorAll('.nav-links a').forEach(a =>
+    a.addEventListener('click', () => {
+      header.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+    })
+  );
+
+  // Screenshot lightbox
+  const shots = Array.from(document.querySelectorAll('.shot'));
+  const lb = document.getElementById('lightbox');
+  const lbImg = document.getElementById('lbImg');
+  const lbCap = document.getElementById('lbCap');
+  const lbClose = document.getElementById('lbClose');
+  const lbPrev = document.getElementById('lbPrev');
+  const lbNext = document.getElementById('lbNext');
+  let idx = 0, lastFocus = null;
+
+  function render(i) {
+    idx = (i + shots.length) % shots.length;
+    const el = shots[idx];
+    lbImg.src = el.dataset.full;
+    lbImg.alt = el.querySelector('img').alt;
+    lbCap.textContent = el.dataset.caption + ' · ' + (idx + 1) + ' / ' + shots.length;
+  }
+  function open(i) {
+    lastFocus = document.activeElement;
+    render(i);
+    lb.hidden = false;
+    requestAnimationFrame(() => lb.classList.add('open'));
+    document.body.style.overflow = 'hidden';
+    lbClose.focus();
+  }
+  function close() {
+    lb.classList.remove('open');
+    document.body.style.overflow = '';
+    setTimeout(() => { lb.hidden = true; }, 180);
+    if (lastFocus) lastFocus.focus();
+  }
+
+  shots.forEach((el, i) => el.addEventListener('click', () => open(i)));
+  lbPrev.addEventListener('click', () => render(idx - 1));
+  lbNext.addEventListener('click', () => render(idx + 1));
+  lbClose.addEventListener('click', close);
+  lb.addEventListener('click', e => { if (e.target === lb) close(); });
+  document.addEventListener('keydown', e => {
+    if (lb.hidden) return;
+    if (e.key === 'Escape') close();
+    else if (e.key === 'ArrowLeft') render(idx - 1);
+    else if (e.key === 'ArrowRight') render(idx + 1);
+  });
+</script>
+</body>
+</html>
